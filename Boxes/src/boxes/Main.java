@@ -291,7 +291,7 @@ public class Main {
 //            g2.drawRect(67, 327, 10, 10); // lower left corner (origin)
 //            g2.drawRect(588, 327, 5, 5); // lower right
             // chart is 67, 327 to 588, 34
-
+  
             // y-range is 327 - 34 = 293 pixels..
             // 100% is 293.
 
