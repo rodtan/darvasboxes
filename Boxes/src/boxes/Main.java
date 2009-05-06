@@ -225,6 +225,10 @@ public class Main {
                             break;
                     } // end switch
                 } // end for
+                if (lastBox > -1) {
+                    buySell[boxCounter] = buySell[boxCounter - 1];
+                    boxEnds[boxCounter++] = lastBox;
+                }
                 createChart(sym, quotes, boxStarts, boxEnds, buySell, boxCounter - 1, lastBox);
             } // if quotes != null
         } catch (Exception ex) {
@@ -235,26 +239,29 @@ public class Main {
     public void createChart(String sym, List quotes, int[] boxStarts, int[] boxEnds, String[] buySell, int boxCounter, int lastBox) {
         SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy");
         JFreeChart chart = getOHLCChart(quotes, sym);
-        Color sellColor = new Color(255,0,0,60);
+        Color sellColor = new Color(255, 0, 0, 60);
         Color buyColor = new Color(0, 0, 255, 60);
+        Color startColor = new Color(255, 255, 255, 60);
 
         try {
-
-
             for (int j = 0; j <= boxCounter; j++) {
                 DailyQuote b1 = (DailyQuote) quotes.get(boxStarts[j]);
                 DailyQuote b2 = (DailyQuote) quotes.get(boxEnds[j]);
-                System.out.println("Box " + j + ": " + sdf.format(b1.getTradeDate()) +
-                        ", ending " + sdf.format(b2.getTradeDate()) + " : " + buySell[j]);
-                //System.out.println("Lowest : " + getLowestLow(quotes, boxStarts[j], boxEnds[j]));
-                //System.out.println("Highest: " + getHighestHigh(quotes, boxStarts[j], boxEnds[j]));
-
-                // get the y coordinates
-                double high = getHighestHigh(quotes, boxStarts[j], boxEnds[j])+ 0.1;
-                double low  = getLowestLow(quotes, boxStarts[j], boxEnds[j]) - 0.1;
-                Color color = (buySell[j].equals("S")) ? sellColor : buyColor;
-                XYBoxAnnotation xyba = new XYBoxAnnotation(new Day(b1.getTradeDate()).getMiddleMillisecond(), low,
-                        new Day(b2.getTradeDate()).getMiddleMillisecond(), high, new BasicStroke(0.0F), color, color);
+                if (j > 0) {
+                    System.out.println("Box " + j + ": " + sdf.format(b1.getTradeDate()) +
+                            ", ending " + sdf.format(b2.getTradeDate()) + " : " + buySell[j-1]);
+                } else {
+                    System.out.println("Box " + j + ": " + sdf.format(b1.getTradeDate()) +
+                            ", ending " + sdf.format(b2.getTradeDate()));
+                }
+                double high = getHighestHigh(quotes, boxStarts[j], boxEnds[j]) + 0.1;
+                double low = getLowestLow(quotes, boxStarts[j], boxEnds[j]) - 0.1;
+                Color color = startColor;
+                if (j > 0) {
+                    color = (buySell[j - 1].equals("S")) ? sellColor : buyColor;
+                }
+                XYBoxAnnotation xyba = new XYBoxAnnotation(new Day(b1.getTradeDate()).getFirstMillisecond(), low,
+                        new Day(b2.getTradeDate()).getLastMillisecond(), high, new BasicStroke(0.0F), Color.black, color);
                 CandlestickRenderer renderer = (CandlestickRenderer) chart.getXYPlot().getRenderer();
                 renderer.addAnnotation(xyba);
             }
@@ -262,6 +269,7 @@ public class Main {
             if (lastBox > -1) {
                 DailyQuote b3 = (DailyQuote) quotes.get(lastBox);
                 System.out.println("Last box fully formed: " + sdf.format(b3.getTradeDate()));
+
             } else {
                 System.out.println("No box formed yet");
             }
@@ -275,52 +283,9 @@ public class Main {
         }
     }
 
-    public double TestvalueToJava2D(DateAxis axis, double value, Rectangle2D area,
-            RectangleEdge edge) {
-
-        value = axis.getTimeline().toTimelineValue((long) value);
-        DateRange range = (DateRange) axis.getRange();
-        Timeline tl = axis.getTimeline();
-        System.out.println(tl.getClass());
-        double axisMin = axis.getTimeline().toTimelineValue(range.getLowerDate());
-        double axisMax = axis.getTimeline().toTimelineValue(range.getUpperDate());
-        double result = 0.0;
-        if (RectangleEdge.isTopOrBottom(edge)) {
-            double maxX = area.getMaxX();
-            double minX = area.getMinX();
-            if (minX > maxX) {
-                //if (isInverted()) {
-                result = maxX + ((value - axisMin) / (axisMax - axisMin)) * (minX - maxX);
-            } else {
-                result = minX + ((value - axisMin) / (axisMax - axisMin)) * (maxX - minX);
-            }
-        } else if (RectangleEdge.isLeftOrRight(edge)) {
-            double minY = area.getMinY();
-            double maxY = area.getMaxY();
-            if (maxY > minY) {
-                //if (isInverted()) {
-                result = minY + (((value - axisMin) / (axisMax - axisMin)) * (maxY - minY));
-            } else {
-                result = maxY - (((value - axisMin) / (axisMax - axisMin)) * (maxY - minY));
-            }
-        }
-        return result;
-
-    }
-
     public void saveChart(JFreeChart chart, String filepath) throws Exception {
         FileOutputStream png = new FileOutputStream(filepath);
         ChartUtilities.writeChartAsPNG(png, chart, 600, 400);
-    }
-
-    public void saveImage(BufferedImage img, String filepath) throws Exception {
-        ImageOutputStream test = ImageIO.createImageOutputStream(
-                new FileOutputStream(filepath));
-        ImageWriter iw = ImageIO.getImageWritersByFormatName("png").next();
-        iw.setOutput(test);
-        iw.write(img);
-        iw.dispose();
-        test.close();
     }
 
     public String getPNGFileName(String sym) {
