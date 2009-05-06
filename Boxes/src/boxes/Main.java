@@ -4,6 +4,7 @@
  */
 package boxes;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.geom.Rectangle2D;
@@ -28,12 +29,15 @@ import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
 import org.jfree.data.xy.DefaultHighLowDataset;
 import org.jfree.chart.ChartFactory;
+import org.jfree.chart.annotations.XYBoxAnnotation;
 import org.jfree.chart.axis.DateAxis;
 import org.jfree.chart.axis.SegmentedTimeline;
 import org.jfree.chart.axis.Timeline;
 import org.jfree.chart.plot.XYPlot;
+import org.jfree.chart.renderer.xy.CandlestickRenderer;
 import org.jfree.data.Range;
 import org.jfree.data.time.DateRange;
+import org.jfree.data.time.Day;
 import org.jfree.data.xy.OHLCDataset;
 import org.jfree.ui.RectangleEdge;
 
@@ -231,22 +235,12 @@ public class Main {
     public void createChart(String sym, List quotes, int[] boxStarts, int[] boxEnds, String[] buySell, int boxCounter, int lastBox) {
         SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy");
         JFreeChart chart = getOHLCChart(quotes, sym);
+        Color sellColor = new Color(255,0,0,60);
+        Color buyColor = new Color(0, 0, 255, 60);
 
         try {
-            saveChart(chart, getPNGFileName(sym));
 
-            BufferedImage img = ImageIO.read(new File(getPNGFileName(sym)));
-            Graphics2D g2 = img.createGraphics();
-            g2.setPaint(Color.blue); // blue lines
 
-            double absHigh = getHighestHigh(quotes) + .5;
-            double absLow = getLowestLow(quotes) - .5;
-            if (absLow < 0.0) {
-                absLow = 0.0;
-            }
-
-            double range = absHigh - absLow;
-            int prevLeft = 0;
             for (int j = 0; j <= boxCounter; j++) {
                 DailyQuote b1 = (DailyQuote) quotes.get(boxStarts[j]);
                 DailyQuote b2 = (DailyQuote) quotes.get(boxEnds[j]);
@@ -256,25 +250,13 @@ public class Main {
                 //System.out.println("Highest: " + getHighestHigh(quotes, boxStarts[j], boxEnds[j]));
 
                 // get the y coordinates
-                int topStart = 30;
-                double high = getHighestHigh(quotes, boxStarts[j], boxEnds[j]);
-                int highbox = (int) (293 * ((absHigh - high) / range) + topStart);
-                //System.out.println("high pct " + highbox);
-
-                double low = getLowestLow(quotes, boxStarts[j], boxEnds[j]);
-                int height = Math.abs((int) (293 * ((absHigh - low) / range) + topStart) - highbox);
-                int leftStart = 85;
-                g2.setClip(0,0, img.getWidth(), img.getHeight());
-                DateAxis axis = (DateAxis)chart.getXYPlot().getDomainAxis();
-                int xcoord = (int)axis.dateToJava2D(b1.getTradeDate(), g2.getClipBounds(), RectangleEdge.BOTTOM);
-                int xcoord2 = (int)axis.dateToJava2D(b2.getTradeDate(), g2.getClipBounds(), RectangleEdge.BOTTOM);
-                double testx = TestvalueToJava2D(axis, b1.getTradeDate().getTime(), g2.getClipBounds(), RectangleEdge.BOTTOM);
-                System.out.println("x-coord: " + xcoord + " testx: " + testx);
-                int left = xcoord + 61; //(int) ((521 * boxStarts[j] / quotes.size()) + leftStart);
-                int width = xcoord2 - xcoord -2; // Math.abs((int) ((521 * boxEnds[j] / quotes.size()) + leftStart) - left);
-                if (prevLeft > 0) left = prevLeft;
-                if (prevLeft == 0) prevLeft = left + width;
-                g2.drawRect(left, highbox, width, height);
+                double high = getHighestHigh(quotes, boxStarts[j], boxEnds[j])+ 0.1;
+                double low  = getLowestLow(quotes, boxStarts[j], boxEnds[j]) - 0.1;
+                Color color = (buySell[j].equals("S")) ? sellColor : buyColor;
+                XYBoxAnnotation xyba = new XYBoxAnnotation(new Day(b1.getTradeDate()).getMiddleMillisecond(), low,
+                        new Day(b2.getTradeDate()).getMiddleMillisecond(), high, new BasicStroke(0.0F), color, color);
+                CandlestickRenderer renderer = (CandlestickRenderer) chart.getXYPlot().getRenderer();
+                renderer.addAnnotation(xyba);
             }
 
             if (lastBox > -1) {
@@ -283,21 +265,9 @@ public class Main {
             } else {
                 System.out.println("No box formed yet");
             }
-            // drawing for first box : 02/10 to 02/26
-            //g2.drawRect(87, 92, 100, 10); // x,y, width, height
-            // drawing for 2nd box: 02/27 to 04/13
-            //g2.drawRect(215, 180, 100, 100);
-            //g2.drawRect(67, 34, 100, 100); // right at the top-left axis
-//            g2.drawRect(67, 327, 10, 10); // lower left corner (origin)
-//            g2.drawRect(588, 327, 5, 5); // lower right
-            // chart is 67, 327 to 588, 34
-  
-            // y-range is 327 - 34 = 293 pixels..
-            // 100% is 293.
-
-            // x-range is 588 - 67 = 521 pixels.. 100% is 521
-            String newImagePath = TEST_PNG_FILEPATH + sym + PNG_FILE_EXT;
-            saveImage(img, newImagePath);
+            saveChart(chart, getPNGFileName(sym));
+//            String newImagePath = TEST_PNG_FILEPATH + sym + PNG_FILE_EXT;
+//            saveImage(img, newImagePath);
 
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -306,46 +276,37 @@ public class Main {
     }
 
     public double TestvalueToJava2D(DateAxis axis, double value, Rectangle2D area,
-                             RectangleEdge edge) {
+            RectangleEdge edge) {
 
-     value = axis.getTimeline().toTimelineValue((long) value);
-     DateRange range = (DateRange) axis.getRange();
-     Timeline tl = axis.getTimeline();
-     System.out.println(tl.getClass());
-     double axisMin = axis.getTimeline().toTimelineValue(range.getLowerDate());
-     double axisMax = axis.getTimeline().toTimelineValue(range.getUpperDate());
-     double result = 0.0;
-     if (RectangleEdge.isTopOrBottom(edge)) {
-         double maxX = area.getMaxX();
-         double minX = area.getMinX();
-         if (minX > maxX) {
-         //if (isInverted()) {
-             result = maxX + ((value - axisMin) / (axisMax - axisMin))
-                      * (minX - maxX);
-         }
-         else {
-             result = minX + ((value - axisMin) / (axisMax - axisMin))
-                      * (maxX - minX);
-         }
-     }
-     else if (RectangleEdge.isLeftOrRight(edge)) {
-         double minY = area.getMinY();
-         double maxY = area.getMaxY();
-         if (maxY > minY) {
-         //if (isInverted()) {
-             result = minY + (((value - axisMin) / (axisMax - axisMin))
-                      * (maxY - minY));
-         }
-         else {
-             result = maxY - (((value - axisMin) / (axisMax - axisMin))
-                      * (maxY - minY));
-         }
-     }
-     return result;
+        value = axis.getTimeline().toTimelineValue((long) value);
+        DateRange range = (DateRange) axis.getRange();
+        Timeline tl = axis.getTimeline();
+        System.out.println(tl.getClass());
+        double axisMin = axis.getTimeline().toTimelineValue(range.getLowerDate());
+        double axisMax = axis.getTimeline().toTimelineValue(range.getUpperDate());
+        double result = 0.0;
+        if (RectangleEdge.isTopOrBottom(edge)) {
+            double maxX = area.getMaxX();
+            double minX = area.getMinX();
+            if (minX > maxX) {
+                //if (isInverted()) {
+                result = maxX + ((value - axisMin) / (axisMax - axisMin)) * (minX - maxX);
+            } else {
+                result = minX + ((value - axisMin) / (axisMax - axisMin)) * (maxX - minX);
+            }
+        } else if (RectangleEdge.isLeftOrRight(edge)) {
+            double minY = area.getMinY();
+            double maxY = area.getMaxY();
+            if (maxY > minY) {
+                //if (isInverted()) {
+                result = minY + (((value - axisMin) / (axisMax - axisMin)) * (maxY - minY));
+            } else {
+                result = maxY - (((value - axisMin) / (axisMax - axisMin)) * (maxY - minY));
+            }
+        }
+        return result;
 
- }
-
-
+    }
 
     public void saveChart(JFreeChart chart, String filepath) throws Exception {
         FileOutputStream png = new FileOutputStream(filepath);
@@ -368,8 +329,8 @@ public class Main {
 
     public JFreeChart getOHLCChart(List quotes, String sym) {
         OHLCDataset dataset = getOHLCDataSet(quotes, sym);
-        JFreeChart chart = ChartFactory.createHighLowChart(
-                sym, "Date", "Price", dataset, true);
+        JFreeChart chart = ChartFactory.createCandlestickChart(
+                sym, "Date", "Price", dataset, false);
         chart.removeLegend();
         XYPlot xyplot = chart.getXYPlot();
         DateAxis axis = (DateAxis) xyplot.getDomainAxis();
@@ -468,7 +429,7 @@ public class Main {
     public static void main(String[] args) {
         // TODO code application logic here
         Main newMain = new Main();
-        String[] symbols = {"C"};
+        String[] symbols = {"C", "ATVI"};
         for (int i = 0; i < symbols.length; i++) {
             System.out.println("Doing it for " + symbols[i]);
             newMain.process(symbols[i]);
