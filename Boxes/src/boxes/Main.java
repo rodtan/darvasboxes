@@ -6,10 +6,6 @@ package boxes;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
@@ -24,22 +20,16 @@ import java.net.URL;
 import java.net.URLConnection;
 
 import java.util.Collections;
-import javax.imageio.ImageIO;
-import javax.imageio.ImageWriter;
-import javax.imageio.stream.ImageOutputStream;
 import org.jfree.data.xy.DefaultHighLowDataset;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.annotations.XYBoxAnnotation;
 import org.jfree.chart.axis.DateAxis;
 import org.jfree.chart.axis.SegmentedTimeline;
-import org.jfree.chart.axis.Timeline;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.xy.CandlestickRenderer;
 import org.jfree.data.Range;
-import org.jfree.data.time.DateRange;
 import org.jfree.data.time.Day;
 import org.jfree.data.xy.OHLCDataset;
-import org.jfree.ui.RectangleEdge;
 
 /**
  *
@@ -142,11 +132,12 @@ public class Main {
                 //Date[] sBox = new Date[10];
                 int[] boxStarts = new int[10];
                 int[] boxEnds = new int[10];
+                String[] buySell = new String[10];
                 for (int j = 0; j < 10; j++) {
                     boxStarts[j] = -1;
                     boxEnds[j] = -1;
                 }
-                String[] buySell = new String[10];
+                buySell[0] = "X";
                 int lastBox = 0;
 
                 int boxCounter = 0;
@@ -191,7 +182,7 @@ public class Main {
                             if (boxTop >= dQuote.getHighPrice()) {
                                 if (boxBottom <= dQuote.getLowPrice()) {
                                     state = 5;
-                                    lastBox = i;
+
                                 } else {
                                     state = 3;
                                     boxBottom = dQuote.getLowPrice();
@@ -204,20 +195,23 @@ public class Main {
                         case 5:
                             if (dQuote.getHighPrice() > boxTop) {
                                 // need previous day's date
-                                buySell[boxCounter] = "B";
+                                buySell[boxCounter+1] = "B";
                                 boxEnds[boxCounter++] = i - 1;
                                 boxStarts[boxCounter] = i;
                                 state = 1;
                                 lastBox = -1;
                             } else if (dQuote.getLowPrice() < boxBottom) {
                                 // need previous day's date
-                                buySell[boxCounter] = "S";
+                                buySell[boxCounter+1] = "S";
                                 boxEnds[boxCounter++] = i - 1;
                                 boxStarts[boxCounter] = i;
                                 state = 1;
                                 lastBox = -1;
                             } else {
                                 state = 5;
+                                lastBox = i;
+//                                System.out.println("box start " + boxStarts[boxCounter]);
+//                                System.out. println("holding steady " + dQuote.getTradeDate() + " " + lastBox);
                             }
                             break;
                         default:
@@ -226,10 +220,12 @@ public class Main {
                     } // end switch
                 } // end for
                 if (lastBox > -1) {
-                    buySell[boxCounter] = buySell[boxCounter - 1];
-                    boxEnds[boxCounter++] = lastBox;
+                    boxEnds[boxCounter] = lastBox;
+                } else {
+                    boxEnds[boxCounter] = quotes.size()-1;
+                    //buySell[boxCounter] = "X";
                 }
-                createChart(sym, quotes, boxStarts, boxEnds, buySell, boxCounter - 1, lastBox);
+                createChart(sym, quotes, boxStarts, boxEnds, buySell, boxCounter, lastBox);
             } // if quotes != null
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -249,19 +245,30 @@ public class Main {
                 DailyQuote b2 = (DailyQuote) quotes.get(boxEnds[j]);
                 if (j > 0) {
                     System.out.println("Box " + j + ": " + sdf.format(b1.getTradeDate()) +
-                            ", ending " + sdf.format(b2.getTradeDate()) + " : " + buySell[j-1]);
+                            ", ending " + sdf.format(b2.getTradeDate()) + " : " + buySell[j]);
                 } else {
                     System.out.println("Box " + j + ": " + sdf.format(b1.getTradeDate()) +
-                            ", ending " + sdf.format(b2.getTradeDate()));
+                            ", ending " + sdf.format(b2.getTradeDate()) + " : " + buySell[j]);
                 }
                 double high = getHighestHigh(quotes, boxStarts[j], boxEnds[j]) + 0.1;
                 double low = getLowestLow(quotes, boxStarts[j], boxEnds[j]) - 0.1;
                 Color color = startColor;
                 if (j > 0) {
-                    color = (buySell[j - 1].equals("S")) ? sellColor : buyColor;
+                    color = (buySell[j].equals("S")) ? sellColor : buyColor;
+                    if (buySell[j].equals("X")) {
+                        color = startColor;
+                    }
                 }
-                XYBoxAnnotation xyba = new XYBoxAnnotation(new Day(b1.getTradeDate()).getFirstMillisecond(), low,
-                        new Day(b2.getTradeDate()).getLastMillisecond(), high, new BasicStroke(0.0F), Color.black, color);
+                Date start = b1.getTradeDate();
+                Date end = b2.getTradeDate();
+//                if ((j == boxCounter) && (lastBox == -1))  {
+//                    DailyQuote mostRecent = (DailyQuote)quotes.get(quotes.size()-1);
+//                    end = mostRecent.getTradeDate();
+//                    color = startColor;
+//                }
+                //System.out.println(end);
+                XYBoxAnnotation xyba = new XYBoxAnnotation(new Day(start).getFirstMillisecond(), low,
+                        new Day(end).getLastMillisecond(), high, new BasicStroke(0.0F), Color.black, color);
                 CandlestickRenderer renderer = (CandlestickRenderer) chart.getXYPlot().getRenderer();
                 renderer.addAnnotation(xyba);
             }
@@ -269,9 +276,20 @@ public class Main {
             if (lastBox > -1) {
                 DailyQuote b3 = (DailyQuote) quotes.get(lastBox);
                 System.out.println("Last box fully formed: " + sdf.format(b3.getTradeDate()));
-
             } else {
                 System.out.println("No box formed yet");
+//                DailyQuote start = (DailyQuote) quotes.get(boxEnds[boxCounter]+1);
+//                DailyQuote end = (DailyQuote) quotes.get(quotes.size() - 1);
+//                double high = getHighestHigh(quotes, boxStarts[boxCounter]+1, quotes.size()-1) + 0.1;
+//                double low = getLowestLow(quotes, boxStarts[boxCounter]+1, quotes.size()-1) - 0.1;
+//                XYBoxAnnotation xyba = new XYBoxAnnotation(
+//                        new Day(start.getTradeDate()).getFirstMillisecond(),
+//                        low,
+//                        new Day(end.getTradeDate()).getLastMillisecond(),
+//                        high,
+//                        new BasicStroke(0.0F), Color.black, startColor);
+//                CandlestickRenderer renderer = (CandlestickRenderer) chart.getXYPlot().getRenderer();
+//                renderer.addAnnotation(xyba);
             }
             saveChart(chart, getPNGFileName(sym));
 //            String newImagePath = TEST_PNG_FILEPATH + sym + PNG_FILE_EXT;
@@ -394,7 +412,7 @@ public class Main {
     public static void main(String[] args) {
         // TODO code application logic here
         Main newMain = new Main();
-        String[] symbols = {"C", "ATVI"};
+        String[] symbols = {"C", "ATVI", "LM","GOOG"};
         for (int i = 0; i < symbols.length; i++) {
             System.out.println("Doing it for " + symbols[i]);
             newMain.process(symbols[i]);
