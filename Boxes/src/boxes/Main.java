@@ -292,8 +292,6 @@ public class Main {
 //                renderer.addAnnotation(xyba);
             }
             saveChart(chart, getPNGFileName(sym));
-//            String newImagePath = TEST_PNG_FILEPATH + sym + PNG_FILE_EXT;
-//            saveImage(img, newImagePath);
 
         } catch (Exception ex) {
             ex.printStackTrace();
