@@ -23,13 +23,17 @@ import java.util.Collections;
 import org.jfree.data.xy.DefaultHighLowDataset;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.annotations.XYBoxAnnotation;
+import org.jfree.chart.annotations.XYLineAnnotation;
+import org.jfree.chart.annotations.XYPointerAnnotation;
 import org.jfree.chart.axis.DateAxis;
 import org.jfree.chart.axis.SegmentedTimeline;
+import org.jfree.chart.labels.StandardXYToolTipGenerator;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.xy.CandlestickRenderer;
 import org.jfree.data.Range;
 import org.jfree.data.time.Day;
 import org.jfree.data.xy.OHLCDataset;
+import org.jfree.ui.TextAnchor;
 
 /**
  *
@@ -195,14 +199,14 @@ public class Main {
                         case 5:
                             if (dQuote.getHighPrice() > boxTop) {
                                 // need previous day's date
-                                buySell[boxCounter+1] = "B";
+                                buySell[boxCounter + 1] = "B";
                                 boxEnds[boxCounter++] = i - 1;
                                 boxStarts[boxCounter] = i;
                                 state = 1;
                                 lastBox = -1;
                             } else if (dQuote.getLowPrice() < boxBottom) {
                                 // need previous day's date
-                                buySell[boxCounter+1] = "S";
+                                buySell[boxCounter + 1] = "S";
                                 boxEnds[boxCounter++] = i - 1;
                                 boxStarts[boxCounter] = i;
                                 state = 1;
@@ -222,8 +226,8 @@ public class Main {
                 if (lastBox > -1) {
                     boxEnds[boxCounter] = lastBox;
                 } else {
-                    boxEnds[boxCounter] = quotes.size()-1;
-                    //buySell[boxCounter] = "X";
+                    boxEnds[boxCounter] = quotes.size() - 1;
+                //buySell[boxCounter] = "X";
                 }
                 createChart(sym, quotes, boxStarts, boxEnds, buySell, boxCounter, lastBox);
             } // if quotes != null
@@ -268,9 +272,30 @@ public class Main {
 //                }
                 //System.out.println(end);
                 XYBoxAnnotation xyba = new XYBoxAnnotation(new Day(start).getFirstMillisecond(), low,
-                        new Day(end).getLastMillisecond(), high, new BasicStroke(0.0F), Color.black, color);
+                        new Day(end).getMiddleMillisecond(), high, new BasicStroke(0.0F), Color.black, color);
                 CandlestickRenderer renderer = (CandlestickRenderer) chart.getXYPlot().getRenderer();
                 renderer.addAnnotation(xyba);
+
+                
+                renderer.setBaseToolTipGenerator(StandardXYToolTipGenerator.getTimeSeriesInstance());
+                double indicator = b1.getHighPrice();
+                double angle = Math.toRadians(90);
+                if (buySell[j].equals("S")) {
+                    indicator = b1.getLowPrice() ;
+                    angle = Math.toRadians(270);
+                }
+                String price = truncate(b1.getAdjClose()) + "";
+                
+                XYPointerAnnotation xypa = new XYPointerAnnotation(price,
+                        new Day(start).getFirstMillisecond(), indicator, angle);
+                //xypa.setTextAnchor(TextAnchor.BOTTOM_LEFT);
+                //xypa.setArrowLength(xypa.getArrowLength()*2);
+
+                xypa.setPaint(Color.BLACK);
+                xypa.setArrowPaint(Color.BLACK);
+                renderer.addAnnotation(xypa);
+                
+
             }
 
             if (lastBox > -1) {
@@ -299,6 +324,11 @@ public class Main {
         }
     }
 
+    public double truncate(double x) {
+        long y = (long)(x*100);
+        return (double)y/100;
+    }
+    
     public void saveChart(JFreeChart chart, String filepath) throws Exception {
         FileOutputStream png = new FileOutputStream(filepath);
         ChartUtilities.writeChartAsPNG(png, chart, 600, 400);
@@ -410,7 +440,7 @@ public class Main {
     public static void main(String[] args) {
         // TODO code application logic here
         Main newMain = new Main();
-        String[] symbols = {"C", "ATVI", "LM","GOOG"};
+        String[] symbols = {"C", "ATVI", "LM", "GOOG"};
         for (int i = 0; i < symbols.length; i++) {
             System.out.println("Doing it for " + symbols[i]);
             newMain.process(symbols[i]);
