@@ -23,7 +23,6 @@ import java.util.Collections;
 import org.jfree.data.xy.DefaultHighLowDataset;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.annotations.XYBoxAnnotation;
-import org.jfree.chart.annotations.XYLineAnnotation;
 import org.jfree.chart.annotations.XYPointerAnnotation;
 import org.jfree.chart.axis.DateAxis;
 import org.jfree.chart.axis.SegmentedTimeline;
@@ -33,7 +32,6 @@ import org.jfree.chart.renderer.xy.CandlestickRenderer;
 import org.jfree.data.Range;
 import org.jfree.data.time.Day;
 import org.jfree.data.xy.OHLCDataset;
-import org.jfree.ui.TextAnchor;
 
 /**
  *
@@ -214,8 +212,6 @@ public class Main {
                             } else {
                                 state = 5;
                                 lastBox = i;
-//                                System.out.println("box start " + boxStarts[boxCounter]);
-//                                System.out. println("holding steady " + dQuote.getTradeDate() + " " + lastBox);
                             }
                             break;
                         default:
@@ -223,12 +219,7 @@ public class Main {
                             break;
                     } // end switch
                 } // end for
-                if (lastBox > -1) {
-                    boxEnds[boxCounter] = lastBox;
-                } else {
-                    boxEnds[boxCounter] = quotes.size() - 1;
-                //buySell[boxCounter] = "X";
-                }
+                boxEnds[boxCounter] = lastBox > -1 ? lastBox : quotes.size() -1;
                 createChart(sym, quotes, boxStarts, boxEnds, buySell, boxCounter, lastBox);
             } // if quotes != null
         } catch (Exception ex) {
@@ -265,12 +256,7 @@ public class Main {
                 }
                 Date start = b1.getTradeDate();
                 Date end = b2.getTradeDate();
-//                if ((j == boxCounter) && (lastBox == -1))  {
-//                    DailyQuote mostRecent = (DailyQuote)quotes.get(quotes.size()-1);
-//                    end = mostRecent.getTradeDate();
-//                    color = startColor;
-//                }
-                //System.out.println(end);
+
                 XYBoxAnnotation xyba = new XYBoxAnnotation(new Day(start).getFirstMillisecond(), low,
                         new Day(end).getMiddleMillisecond(), high, new BasicStroke(0.0F), Color.black, color);
                 CandlestickRenderer renderer = (CandlestickRenderer) chart.getXYPlot().getRenderer();
@@ -303,18 +289,6 @@ public class Main {
                 System.out.println("Last box fully formed: " + sdf.format(b3.getTradeDate()));
             } else {
                 System.out.println("No box formed yet");
-//                DailyQuote start = (DailyQuote) quotes.get(boxEnds[boxCounter]+1);
-//                DailyQuote end = (DailyQuote) quotes.get(quotes.size() - 1);
-//                double high = getHighestHigh(quotes, boxStarts[boxCounter]+1, quotes.size()-1) + 0.1;
-//                double low = getLowestLow(quotes, boxStarts[boxCounter]+1, quotes.size()-1) - 0.1;
-//                XYBoxAnnotation xyba = new XYBoxAnnotation(
-//                        new Day(start.getTradeDate()).getFirstMillisecond(),
-//                        low,
-//                        new Day(end.getTradeDate()).getLastMillisecond(),
-//                        high,
-//                        new BasicStroke(0.0F), Color.black, startColor);
-//                CandlestickRenderer renderer = (CandlestickRenderer) chart.getXYPlot().getRenderer();
-//                renderer.addAnnotation(xyba);
             }
             saveChart(chart, getPNGFileName(sym));
 
