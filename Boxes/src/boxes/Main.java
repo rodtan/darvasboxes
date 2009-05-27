@@ -239,11 +239,11 @@ public class Main {
                 DailyQuote b1 = (DailyQuote) quotes.get(boxStarts[j]);
                 DailyQuote b2 = (DailyQuote) quotes.get(boxEnds[j]);
                 if (j > 0) {
-                    System.out.println("Box " + j + ": " + sdf.format(b1.getTradeDate()) +
-                            ", ending " + sdf.format(b2.getTradeDate()) + " : " + buySell[j]);
+                    System.out.println("Box " + j + ": " + "Action : " + buySell[j] + " starting " + sdf.format(b1.getTradeDate()) +
+                            ", ending " + sdf.format(b2.getTradeDate()));
                 } else {
                     System.out.println("Box " + j + ": " + sdf.format(b1.getTradeDate()) +
-                            ", ending " + sdf.format(b2.getTradeDate()) + " : " + buySell[j]);
+                            ", ending " + sdf.format(b2.getTradeDate()) + " THEN ");
                 }
                 double high = getHighestHigh(quotes, boxStarts[j], boxEnds[j]) + 0.1;
                 double low = getLowestLow(quotes, boxStarts[j], boxEnds[j]) - 0.1;
